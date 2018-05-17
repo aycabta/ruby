@@ -9,10 +9,6 @@ module TestIRB
       @scanner = RubyLex.new
     end
 
-    def teardown
-      RubyLex.debug_level = 0
-    end
-
     def test_set_input_proc
       called = false
       @scanner.set_input(nil) {called = true; nil}
@@ -71,7 +67,7 @@ module TestIRB
           true       #;# -:1:*
           a          #;# -:1:-
           "          #;# -:1:-
-          "          #;# ":1:-
+          "          #;# ":1:*
           begin      #;# -:1:-
             a        #;# -:2:-
             a        #;# -:2:-
