@@ -8,10 +8,12 @@
 #
 
 require "readline"
+require "rdoc"
 
 module IRB
   module InputCompletor # :nodoc:
 
+    RDocRIDriver = RDoc::RI::Driver.new
 
     # Set of reserved words used by Ruby, you should not use these for
     # constants or variables
@@ -36,41 +38,97 @@ module IRB
     ]
 
     CompletionProc = proc { |input|
-      bind = IRB.conf[:MAIN_CONTEXT].workspace.binding
+      workspace = IRB.conf[:MAIN_CONTEXT].workspace
+      if workspace.completion_data[:prev] == input
+        workspace.completion_data[:repeat_count] += 1
+      else
+        workspace.completion_data[:repeat_count] = 0
+      end
+      workspace.completion_data[:prev] = input
 
+      candidates = complement(input)
+      if workspace.completion_data[:display_name]
+        display_name = workspace.completion_data[:display_name]
+        workspace.completion_data[:display_name] = nil
+        begin
+          RDocRIDriver.display_name(display_name)
+        rescue RDoc::RI::Driver::NotFoundError
+          candidates
+        else
+          []
+        end
+      else
+        candidates
+      end
+    }
+
+    def self.check_display_name(candidates, on_input, receiver = nil)
+      ws = IRB.conf[:MAIN_CONTEXT].workspace
+      if ws.completion_data[:repeat_count] > 1 and candidates.find{|m| m == on_input}
+        if block_given?
+          ws.completion_data[:display_name] = yield
+        else
+          ws.completion_data[:display_name] = receiver ? "#{receiver}##{on_input}" : on_input
+        end
+      end
+      candidates
+    end
+
+    def self.complement(input)
+      bind = IRB.conf[:MAIN_CONTEXT].workspace.binding
       case input
       when /^((["'`]).*\2)\.([^.]*)$/
         # String
         receiver = $1
+        on_input = $3
         message = Regexp.quote($3)
 
         candidates = String.instance_methods.collect{|m| m.to_s}
-        select_message(receiver, message, candidates)
+        candidates = select_message(receiver, message, candidates)
+        check_display_name(candidates, input) do
+          "String##{on_input}"
+        end
 
       when /^(\/[^\/]*\/)\.([^.]*)$/
         # Regexp
         receiver = $1
+        on_input = $2
         message = Regexp.quote($2)
 
         candidates = Regexp.instance_methods.collect{|m| m.to_s}
-        select_message(receiver, message, candidates)
+        candidates = select_message(receiver, message, candidates)
+        check_display_name(candidates, input) do
+          "Regexp##{on_input}"
+        end
 
       when /^([^\]]*\])\.([^.]*)$/
         # Array
         receiver = $1
+        on_input = $2
         message = Regexp.quote($2)
 
         candidates = Array.instance_methods.collect{|m| m.to_s}
-        select_message(receiver, message, candidates)
+        candidates = select_message(receiver, message, candidates)
+        check_display_name(candidates, input) do
+          "Array##{on_input}"
+        end
 
       when /^([^\}]*\})\.([^.]*)$/
         # Proc or Hash
         receiver = $1
+        on_input = $2
         message = Regexp.quote($2)
 
         candidates = Proc.instance_methods.collect{|m| m.to_s}
         candidates |= Hash.instance_methods.collect{|m| m.to_s}
-        select_message(receiver, message, candidates)
+        candidates = select_message(receiver, message, candidates)
+        check_display_name(candidates, input) do
+          if Proc.instance_methods.find{|m| m.to_s == on_input}
+            "Proc##{on_input}"
+          elsif Hash.instance_methods.find{|m| m.to_s == on_input}
+            "Hash##{on_input}"
+          end
+        end
 
       when /^(:[^:.]*)$/
         # Symbol
@@ -86,11 +144,15 @@ module IRB
         # Absolute Constant or class methods
         receiver = $1
         candidates = Object.constants.collect{|m| m.to_s}
-        candidates.grep(/^#{receiver}/).collect{|e| "::" + e}
+        candidates = candidates.grep(/^#{receiver}/).collect{|e| "::" + e}
+        check_display_name(candidates, input) do
+          receiver
+        end
 
       when /^([A-Z].*)::([^:.]*)$/
         # Constant or class methods
         receiver = $1
+        on_input = $2
         message = Regexp.quote($2)
         begin
           candidates = eval("#{receiver}.constants.collect{|m| m.to_s}", bind)
@@ -98,21 +160,27 @@ module IRB
         rescue Exception
           candidates = []
         end
-        select_message(receiver, message, candidates, "::")
+        candidates = select_message(receiver, message, candidates, "::")
+        check_display_name(candidates, input) do
+          input
+        end
 
       when /^(:[^:.]+)(\.|::)([^.]*)$/
         # Symbol
         receiver = $1
         sep = $2
+        on_input = $3
         message = Regexp.quote($3)
 
         candidates = Symbol.instance_methods.collect{|m| m.to_s}
-        select_message(receiver, message, candidates, sep)
+        candidates = select_message(receiver, message, candidates, sep)
+        check_display_name(candidates, on_input, "Symbol")
 
       when /^(-?(0[dbo])?[0-9_]+(\.[0-9_]+)?([eE]-?[0-9]+)?)(\.|::)([^.]*)$/
         # Numeric
         receiver = $1
         sep = $5
+        on_input = $6
         message = Regexp.quote($6)
 
         begin
@@ -120,12 +188,17 @@ module IRB
         rescue Exception
           candidates = []
         end
-        select_message(receiver, message, candidates, sep)
+        candidates = select_message(receiver, message, candidates, sep)
+        check_display_name(candidates, input) do
+          rec = eval(receiver, bind)
+          "#{rec.class.name}##{on_input}"
+        end
 
       when /^(-?0x[0-9a-fA-F_]+)(\.|::)([^.]*)$/
         # Numeric(0xFFFF)
         receiver = $1
         sep = $2
+        on_input = $3
         message = Regexp.quote($3)
 
         begin
@@ -133,7 +206,11 @@ module IRB
         rescue Exception
           candidates = []
         end
-        select_message(receiver, message, candidates, sep)
+        candidates = select_message(receiver, message, candidates, sep)
+        check_display_name(candidates, input) do
+          rec = eval(receiver, bind)
+          display_name = "#{rec.class.name}##{on_input}"
+        end
 
       when /^(\$[^.]*)$/
         # global var
@@ -144,6 +221,7 @@ module IRB
         # variable.func or func.func
         receiver = $1
         sep = $2
+        on_input = $3
         message = Regexp.quote($3)
 
         gv = eval("global_variables", bind).collect{|m| m.to_s}
@@ -163,6 +241,13 @@ module IRB
               candidates = rec.constants.collect{|m| m.to_s}
             end
             candidates |= rec.methods.collect{|m| m.to_s}
+            check_display_name(candidates, on_input) do
+              if sep == "::" or rec.kind_of?(Module)
+                "#{rec.name}::#{on_input}"
+              else
+                "#{rec.class.name}##{on_input}"
+              end
+            end
           rescue Exception
             candidates = []
           end
@@ -176,6 +261,9 @@ module IRB
           }
           candidates.sort!
           candidates.uniq!
+          check_display_name(candidates, on_input) do
+            "#{sep}#{on_input}"
+          end
         end
         select_message(receiver, message, candidates, sep)
 
@@ -183,17 +271,22 @@ module IRB
         # unknown(maybe String)
 
         receiver = ""
+        on_input = $1
         message = Regexp.quote($1)
 
         candidates = String.instance_methods(true).collect{|m| m.to_s}
-        select_message(receiver, message, candidates)
+        candidates = select_message(receiver, message, candidates)
+        check_display_name(candidates, on_input, "String")
 
       else
         candidates = eval("methods | private_methods | local_variables | instance_variables | self.class.constants", bind).collect{|m| m.to_s}
 
-        (candidates|ReservedWords).grep(/^#{Regexp.quote(input)}/)
+        candidates = (candidates | ReservedWords).grep(/^#{Regexp.quote(input)}/)
+        check_display_name(candidates, input) do
+          "Kernel##{input}"
+        end
       end
-    }
+    end
 
     # Set of available operators in Ruby
     Operators = %w[% & * ** + - / < << <= <=> == === =~ > >= >> [] []= ^ ! != !~]

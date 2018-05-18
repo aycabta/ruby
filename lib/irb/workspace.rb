@@ -71,6 +71,7 @@ EOF
           end
         end
       end
+      @completion_data = {}
       @binding.local_variable_set(:_, nil)
     end
 
@@ -79,6 +80,9 @@ EOF
     # The top-level workspace of this context, also available as
     # <code>IRB.conf[:__MAIN__]</code>
     attr_reader :main
+
+    # Data for showing document in completion
+    attr_accessor :completion_data
 
     # Evaluate the given +statements+ within the  context of this workspace.
     def evaluate(context, statements, file = __FILE__, line = __LINE__)
