@@ -120,6 +120,14 @@ class TestRDocGeneratorJsonIndex < RDoc::TestCase
       now  : #{now} -> #{t}, #{t-now}
       INSPECT
 
+    puts proc {t = Time.now; <<~INSPECT}.call
+      .js files should be the same timestamp,
+      path : #{generated_file}
+      mtime: #{generated_mtime}
+      orig : #{orig_time} -> #{orig_file.mtime}, #{orig_file.mtime-orig_time}
+      now  : #{now} -> #{t}, #{t-now}
+      INSPECT
+
     generated_search_index = Pathname(File.join @tmpdir, 'js/search_index.js')
     assert generated_search_index.mtime > (now - 1), 'search_index.js should be generated timestamp'
 
