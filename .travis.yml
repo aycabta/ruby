@@ -294,24 +294,24 @@ matrix:
   include:
     # to reduce time for finishing all jobs, run the slowest osx build first.
     - <<: *x86_64-darwin17
-    - <<: *x86_64-linux
-    - <<: *i686-linux
-    - <<: *jemalloc
-    - <<: *pedanticism
-    - <<: *ASAN
-    - <<: *MSAN
-    - <<: *UBSAN
-    - <<: *VM_CHECK_MODE
-    - <<: *FIBER_USE_sjlj
-    - <<: *TOKEN_THREADED_CODE
-    - <<: *CALL_THREADED_CODE
-    - <<: *NO_THREADED_CODE
-    - <<: *rubyspec
-  allow_failures:
-    - name: uinversal.x86_64h-darwin17
-    - name: -fsanitize=address
-    - name: -fsanitize=memory
-    - name: -fsanitize=undefined
+      #- <<: *x86_64-linux
+      #- <<: *i686-linux
+      #- <<: *jemalloc
+      #- <<: *pedanticism
+      #- <<: *ASAN
+      #- <<: *MSAN
+      #- <<: *UBSAN
+      #- <<: *VM_CHECK_MODE
+      #- <<: *FIBER_USE_sjlj
+      #- <<: *TOKEN_THREADED_CODE
+      #- <<: *CALL_THREADED_CODE
+      #- <<: *NO_THREADED_CODE
+      #- <<: *rubyspec
+      #allow_failures:
+      #- name: uinversal.x86_64h-darwin17
+      #- name: -fsanitize=address
+      #- name: -fsanitize=memory
+      #- name: -fsanitize=undefined
   fast_finish: true
 
 before_script:
