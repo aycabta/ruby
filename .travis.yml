@@ -92,6 +92,7 @@ env:
     compiler: clang
     before_install:
       - echo "debug print on before_install"
+      - ls -l lib/abbrev.rb
       - ls -l lib/rdoc/generator/template/json_index/js/navigation.js
       - /usr/local/opt/openssl@1.1/bin/openssl version
 
