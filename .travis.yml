@@ -97,6 +97,8 @@ env:
     os: osx
     compiler: clang
     before_install:
+      - echo "debug print on before_install"
+      - ls -l lib/rdoc/generator/template/json_index/js/navigation.js
       - /usr/local/opt/openssl@1.1/bin/openssl version
 
   # --------
@@ -315,6 +317,7 @@ matrix:
   fast_finish: true
 
 before_script:
+  - ls -l lib/rdoc/generator/template/json_index/js/navigation.js
   - echo JOBS=${JOBS} SETARCH=${SETARCH}
   - $SETARCH uname -a
   - $SETARCH uname -r
@@ -338,6 +341,7 @@ before_script:
   - mkdir config_1st config_2nd
   - chmod -R a-w .
   - chmod -R u+w build config_1st config_2nd
+  - ls -l lib/rdoc/generator/template/json_index/js/navigation.js
   - cd build
   - ccache --show-stats
   - |-
@@ -353,6 +357,7 @@ before_script:
   - cp -pr config.cache config.status .ext/include ../config_1st
   - $SETARCH make reconfig
   - cp -pr config.cache config.status .ext/include ../config_2nd
+  - ls -l ../lib/rdoc/generator/template/json_index/js/navigation.js
   - (cd .. && exec diff -ru config_1st config_2nd)
   - chmod u+w ..
   - rm -rf ~/config_2nd
@@ -363,6 +368,7 @@ before_script:
   - |-
     [ -z "${GEMS_FOR_TEST}" ] ||
     $RUBY_PREFIX/bin/gem install --no-document $GEMS_FOR_TEST
+  - ls -l ../lib/rdoc/generator/template/json_index/js/navigation.js
 
 script:
   - $SETARCH make -s test TESTOPTS="${TESTOPTS=$JOBS -q --tty=no}"
