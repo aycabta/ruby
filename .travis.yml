@@ -57,12 +57,6 @@ addons:
       - zlib
       - ccache
 
-cache:
-  ccache: true
-  directories:
-    - $HOME/config_2nd
-    - $HOME/.downloaded-cache
-
 env:
   global:
     - CONFIGURE_TTY=no
